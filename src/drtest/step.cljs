@@ -19,6 +19,24 @@
             [clojure.string :as str]))
 
 
+(defn ^{:arglists '([type label? & keys-and-values])} step
+  [type & args]
+  (let [label (when (string? (first args))
+                (first args))
+        keys-and-values (if label
+                          (rest args)
+                          args)]
+    (when-not (keyword? type)
+      (throw (ex-info "Type must be a keyword" {:type type})))
+    (when-not (even? (count keys-and-values))
+      (throw (ex-info "Uneven number of keys/values" {:count (count keys-and-values)})))
+    (merge {::type type}
+           (when label
+             {::label label})
+           (into {}
+                 (map vec)
+                 (partition 2 keys-and-values)))))
+
 (defn- resolve-ctx
   "Resolve values in step descriptor with current context.
   If value is a function call it with the current context.
