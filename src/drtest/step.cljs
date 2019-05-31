@@ -191,9 +191,11 @@
 (defmethod execute :type [step-descriptor ctx ok fail]
   (with-element step-descriptor ctx fail
     (fn [elt]
-      (let [{text :text} (resolve-ctx step-descriptor ctx #{:text})]
+      (let [{:keys [text overwrite?]} (resolve-ctx step-descriptor ctx #{:text})]
         (try
-          (set! (.-value elt) text)
+          (set! (.-value elt) (if overwrite?
+                                text
+                                (str (.-value elt) text)))
           (js/ReactTestUtils.Simulate.change elt)
           (r/force-update-all)
           (r/after-render #(ok ctx))
