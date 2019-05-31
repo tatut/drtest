@@ -15,7 +15,7 @@ own step types by simply using `defmethod` and hook it to your favorite framewor
 
 # Steps
 
-Steps are defined as maps containing `:drtest.step/type` (required), `drtest.step/label` (optional)
+Steps are user defined functions or defined as maps containing `:drtest.step/type` (required), `drtest.step/label` (optional)
 and type specific keys.
 
 ## Builtin step types
@@ -29,3 +29,13 @@ and type specific keys.
 | `:click` | Simulate click event on `:element` or `:selector`. |
 | `:type` | Simulate typing `:text` event on `:element` or `:selector`. If `:overwrite?` is true replaces text, otherwise appends. |
 | `:wait` | Wait for `:ms` milliseconds before continuing. |
+
+## User defined functions as steps
+
+You can provide a function as a test step, the function will be invoked with one argument:
+the current context. The function must return either a new context map or a boolean value
+describing success or failure.
+
+Returning false from a function will fail the test and consequent steps will not run.
+
+To provide a label for a function step, use a metadata map with `:drtest.step/label` key.
