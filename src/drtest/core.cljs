@@ -1,10 +1,17 @@
 (ns drtest.core
   "Declarative Reagent test runner."
-  (:require [drtest.step :as ds]))
+  (:require [drtest.step :as ds]
+            [cljs.test :refer [is] :include-macros true]))
 
-(defn- take-screenshot [{::ds/keys [label type] :as step-declaration} step-num step-count then-fn]
-  ;; Setup screenshot HUD display in screenshot
-  (let [div (.createElement js/document "div")]
+(defn- step-info [step]
+  (if (map? step)
+    step
+    (meta step)))
+
+(defn- take-screenshot [step step-num step-count then-fn]
+  (let [{::ds/keys [label type]} (step-info step)
+        div (.createElement js/document "div")]
+    ;; Setup screenshot HUD display in screenshot
     (.setAttribute div "style"
                    (str "width: 100%; "
                         "height: 50px; "
@@ -22,31 +29,33 @@
       (.setAttribute prg "style" "width: 200px; height: 20px;")
       (.appendChild div prg))
     (.appendChild div (.createTextNode js/document (str "After step " step-num " / " step-count ": "
-                                                        (or label type)))))
-  (.then (js/screenshot)
-         #(do
-            ;; Remove HUD
-            (.removeChild js/document.body div)
+                                                        (or label type))))
+    (.then (js/screenshot)
+           #(do
+              ;; Remove HUD
+              (.removeChild js/document.body div)
 
-            ;; Continue with the tests
-            (then-fn))))
+              ;; Continue with the tests
+              (then-fn)))))
 
 (defn- run-step* [{:keys [screenshots? done] :as opts} step-num step-count ctx [step & steps]]
-  (ds/execute step
-              ;; Ok callback => run next step
-              (fn [ctx]
-                (is true (str "[OK] Step " (or (::ds/label) (::ds/type type))))
-                (let [cont #(if (seq steps)
-                              (run-step* opts (inc step-num) step-count ctx steps)
-                              (done))]
-                  (if screenshots?
-                    (take-screenshot step step-num step-count cont)
-                    (cont))))
+  (let [{::ds/keys [label type]} (step-info step)]
+    (println "Running step: " (or label "<no label>") " (" type ")")
+    (ds/execute step ctx
+                ;; Ok callback => run next step
+                (fn [ctx]
+                  (is true (str "[OK] Step " (or label type)))
+                  (let [cont #(if (seq steps)
+                                (run-step* opts (inc step-num) step-count ctx steps)
+                                (done))]
+                    (if screenshots?
+                      (take-screenshot step step-num step-count cont)
+                      (cont))))
 
-              ;; Fail callback => call done immediately
-              (fn [error & [error-data]]
-                (is false (str "[FAIL] " error "\n  " (pr-str error-data)))
-                (done))))
+                ;; Fail callback => call done immediately
+                (fn [error error-data]
+                  (is false (str "[FAIL] " error "\n  " (pr-str error-data)))
+                  (done)))))
 
 
 (defn- check-options [{:keys [initial-context done] :as options}]
@@ -55,11 +64,20 @@
   (when-not (map? initial-context)
     (throw (ex-info ":initial-context map must be provided" {:initial-context initial-context}))))
 
-(defn run-steps [{:keys [screenshots? initial-context] :as opts} & steps]
-  (check-options opts)
+(defn- check-steps [steps]
   (let [invalid-steps (remove ds/valid-step? steps)]
     (when (seq invalid-steps)
       (throw (ex-info (str "Found " (count invalid-steps) " invalid steps, check step descriptors.")
-                      {:invalid-steps (vec invalid-steps)}))))
+                      {:invalid-steps (vec invalid-steps)})))))
+
+(defn run-steps [{:keys [screenshots? initial-context done] :as opts} & steps]
+  (try
+    (check-options opts)
+    (check-steps steps)
+    (catch js/Object e
+      (is false (str (ex-message e) ", info:\n" (pr-str (ex-data e))))
+      (if done
+        (done)
+        (throw e))))
   (let [step-count (count steps)]
     (run-step* opts 1 step-count initial-context steps)))

@@ -49,14 +49,24 @@
 (defmethod execute ::fn [step-fn ctx ok fail]
   (try
     (let [result (step-fn ctx)]
-      (if (map? result)
-        (fail "Step function returned invalid context, not a map."
-              {:result result})
-        (ok result)))
-    (catch js/Error e
-      (fail (.-message e) {:error e}))))
+      (cond
+        (false? result)
+        (fail "Step function returned false" {})
 
-(defmethod execute :default [step-decriptor ctx ok fail]
+        (true? result)
+        (ok ctx)
+
+        (map? result)
+        (ok ctx)
+
+        :else
+        (fail "Step function returned invalid result. Expected boolean result or new context map."
+              {:result result})))
+    (catch js/Error e
+      (fail (str "Error in function step: " (.-message e)) {:error e
+                                                            :fn step-fn}))))
+
+(defmethod execute :default [step-descriptor ctx ok fail]
   (fail "Can't execute step, unrecognized step-descriptor type."
         {:step-descriptor step-descriptor}))
 
@@ -69,8 +79,8 @@
                               (.createElement js/document "div")))]
       (try
         (r/render component c)
-        (ok {::container c
-             ::container-created? (nil? container)})
+        (ok (merge ctx {::container c
+                        ::container-created? (nil? container)}))
         (catch js/Error e
           (fail (str "Render failed: " (.-message e))
                 {:error e}))))))
@@ -93,21 +103,21 @@
           {}
           attributes))
 
-(defn- text-found [expected-text element]
-  (let [txt (.-innerText element)]
-    (cond
-      (instance? js/RegExp expected-text)
-      (boolean (re-matches expected-text txt))
+(defn- text-found [expected-text txt]
+  (cond
+    (instance? js/RegExp expected-text)
+    (boolean (re-matches expected-text txt))
 
-      (string? expected-text)
-      (str/includes? txt expected-text)
+    (string? expected-text)
+    (str/includes? txt expected-text)
 
-      :else (throw (ex-info "Expected text must be string or regular expression."
-                            {:expected-text expected-text})))))
+    :else (throw (ex-info "Expected text must be string or regular expression."
+                          {:expected-text expected-text}))))
+
 
 ;; Expect an element with selector to be present
 (defmethod execute :expect [step-descriptor ctx ok fail]
-  (let [{:keys [selector attributes text as]} (resolve-ctx step-descriptor ctx)
+  (let [{:keys [selector attributes text value as]} (resolve-ctx step-descriptor ctx)
         c (::container ctx)]
     (if-not (string? selector)
       (fail "Selector must be a string" {:selector selector})
@@ -120,15 +130,40 @@
                 (fail "Element did not have expected attribute values"
                       {:expected-attributes attributes
                        :wrong-attributes wrong-attributes})
-                (if-not (and text (not (text-found text element)))
+                (if (and text (not (text-found text (.-innerText element))))
                   (fail "Element did not have expected text"
                         {:expected-text text
                          :text (.-innerText element)})
-                  (ok (if as
-                        (assoc ctx as element)
-                        ctx)))))))
+                  (if (and value (not (text-found value (.-value element))))
+                    (fail "Element did not have expected value"
+                          {:expected-value value
+                           :value (.-value element)})
+                    (ok (if as
+                          (assoc ctx as element)
+                          ctx))))))))
         (catch js/Error e
           (fail "Error in :expect step." {:step-descriptor step-descriptor}))))))
+
+(defmethod execute :expect-no [step-descriptor ctx ok fail]
+  (let [{:keys [selector]} (resolve-ctx step-descriptor ctx)]
+    (if (.querySelector (::container ctx) selector)
+      (fail "Expected element to not be present, but it was." {:selector selector})
+      (ok ctx))))
+
+(defmethod execute :expect-count [step-descriptor ctx ok fail]
+  (let [{:keys [selector count]} (resolve-ctx step-descriptor ctx)]
+    (if-not (number? count)
+      (fail "Expected element count must be specified as :count key." {:count count})
+      (if-not (string? selector)
+        (fail "Expected string :selector" {:selector selector})
+        (let [actual-count (-> ctx ::container
+                               (.querySelectorAll selector)
+                               .-length)]
+          (if (not= actual-count count)
+            (fail "Unexpected number of elements" {:expected-count count
+                                                   :actual-count actual-count
+                                                   :selector selector})
+            (ok ctx)))))))
 
 (defn with-element [step-descriptor ctx fail func]
   (let [{:keys [selector element]} (resolve-ctx step-descriptor ctx)]
@@ -149,6 +184,7 @@
         (fail "Can't click, element is disabled." {:element elt})
         (do
           (.click elt)
+          (r/force-update-all)
           (r/after-render #(ok ctx)))))))
 
 ;; Type text into an element
@@ -157,8 +193,15 @@
     (fn [elt]
       (let [{text :text} (resolve-ctx step-descriptor ctx #{:text})]
         (try
-          (set! (.-value elt) (str (.-value elt) text))
+          (set! (.-value elt) text)
           (js/ReactTestUtils.Simulate.change elt)
+          (r/force-update-all)
           (r/after-render #(ok ctx))
           (catch js/Error e
             (fail (str "Exception in :type step: " (.-message e)) {:error e})))))))
+
+(defmethod execute :wait [step-descriptor ctx ok fail]
+  (let [{:keys [ms]} (resolve-ctx step-descriptor ctx)]
+    (if-not (number? ms)
+      (fail "Wait time must be specified as a number in :ms" {:ms ms})
+      (.setTimeout js/window #(ok ctx) ms))))
