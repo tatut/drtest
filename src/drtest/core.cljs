@@ -4,9 +4,16 @@
             [cljs.test :refer [is] :include-macros true]))
 
 (defn- step-info [step]
-  (if (map? step)
+  (cond
+    (map? step)
     step
-    (meta step)))
+
+    (fn? step)
+    (merge {::ds/type ::ds/fn}
+           (meta step))
+
+    :else
+    (throw (ex-info "Unrecognized step type" {:step step}))))
 
 (defn- take-screenshot [step step-num step-count then-fn]
   (let [{::ds/keys [label type]} (step-info step)
