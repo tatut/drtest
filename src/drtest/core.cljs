@@ -15,14 +15,14 @@
     :else
     (throw (ex-info "Unrecognized step type" {:step step}))))
 
-(defn- take-screenshot [step step-num step-count then-fn]
+(defn- take-screenshot [step step-num step-count failed? then-fn]
   (let [{::ds/keys [label type]} (step-info step)
         div (.createElement js/document "div")]
     ;; Setup screenshot HUD display in screenshot
     (.setAttribute div "style"
                    (str "width: 100%; "
                         "height: 50px; "
-                        "background-color: wheat; "
+                        "background-color: " (if failed? "red" "wheat") "; "
                         "position: fixed; "
                         "bottom: 0px; "
                         "left: 0px; "
@@ -35,7 +35,10 @@
       (.setAttribute prg "max" (str step-count))
       (.setAttribute prg "style" "width: 200px; height: 20px;")
       (.appendChild div prg))
-    (.appendChild div (.createTextNode js/document (str "After step " step-num " / " step-count ": "
+    (.appendChild div (.createTextNode js/document (str (if failed?
+                                                          "Failed at step "
+                                                          "After step ")
+                                                        step-num " / " step-count ": "
                                                         (or label type))))
     (.then (js/screenshot)
            #(do
@@ -56,13 +59,15 @@
                                 (run-step* opts (inc step-num) step-count ctx steps)
                                 (done))]
                     (if screenshots?
-                      (take-screenshot step step-num step-count cont)
+                      (take-screenshot step step-num step-count false cont)
                       (cont))))
 
                 ;; Fail callback => call done immediately
                 (fn [error error-data]
                   (is false (str "[FAIL] " error "\n  " (pr-str error-data)))
-                  (done)))))
+                  (if screenshots?
+                    (take-screenshot step step-num step-count true done)
+                    (done))))))
 
 
 (defn- check-options [{:keys [initial-context done] :as options}]
