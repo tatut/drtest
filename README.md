@@ -29,6 +29,8 @@ and type specific keys.
 | `:click` | Simulate click event on `:element` or `:selector`. |
 | `:type` | Simulate typing `:text` event on `:element` or `:selector`. If `:overwrite?` is true replaces text, otherwise appends. |
 | `:wait` | Wait for `:ms` milliseconds before continuing. |
+| `:wait-promise` | Wait for `:promise` to be resolved. If `:as` key is specified, the promise value is added to the context with that key. Fails if promise is rejected. |
+
 
 ## User defined functions as steps
 
