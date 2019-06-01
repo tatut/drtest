@@ -47,7 +47,8 @@
    (into {}
          (map (fn [[key val :as kv]]
                 (if (and (keys-to-resolve key)
-                         (fn? val))
+                         (or (fn? val)
+                             (keyword? val)))
                   [key (val ctx)]
                   kv)))
          step-descriptor)))
@@ -88,20 +89,21 @@
   (fail "Can't execute step, unrecognized step-descriptor type."
         {:step-descriptor step-descriptor}))
 
-(defmethod execute :render [{:keys [component container]} ctx ok fail]
-  (if-not (vector? component)
-    (fail "Invalid :component, expected a reagent component vector."
-          {:component component})
-    (let [c (or container
-                (.appendChild js/document.body
-                              (.createElement js/document "div")))]
-      (try
-        (r/render component c)
-        (ok (merge ctx {::container c
-                        ::container-created? (nil? container)}))
-        (catch js/Error e
-          (fail (str "Render failed: " (.-message e))
-                {:error e}))))))
+(defmethod execute :render [step-descriptor ctx ok fail]
+  (let [{:keys [component container]} (resolve-ctx step-descriptor ctx)]
+    (if-not (vector? component)
+      (fail "Invalid :component, expected a reagent component vector."
+            {:component component})
+      (let [c (or container
+                  (.appendChild js/document.body
+                                (.createElement js/document "div")))]
+        (try
+          (r/render component c)
+          (ok (merge ctx {::container c
+                          ::container-created? (nil? container)}))
+          (catch js/Error e
+            (fail (str "Render failed: " (.-message e))
+                  {:error e})))))))
 
 (defmethod execute ::cleanup [_ {::keys [container container-created?] :as ctx} ok fail]
   (when container-created?
