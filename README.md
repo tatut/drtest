@@ -11,11 +11,53 @@ In drtest you define your UI test as a series of steps. Steps are either user de
 maps defining a `:drtest.step/type` which dispatches to a multimethod. You can also define your
 own step types by simply using `defmethod` and hook it to your favorite framework.
 
-# Pics
+### Basic usage example
+
+```clojure
+;; define-drtest macros is a convenience for
+;; deftest + async invocation. You can also run
+;; drtest.core/run-steps directly in your test.
+
+(define-drtest my-component-test
+  ;; Options map
+  {:screenshots? true
+   :initial-context {:app (r/atom {}}}
+
+  ;; Steps
+  ;; `drtest.step/step` function is a convenience for creating
+  ;; step descriptor maps.
+  ;;
+  ;; It takes the step type and optional human readable label (shown in screenshots)
+  ;; and the keys/values required by the step type.
+
+  (step :render "Render component"
+        :component (fn [{app :app}]
+                     [my-component app]))
+
+  (step :click "Click the doit button"
+        :selector "#doit")
+
+  (step :expect "Expect loading indicator to be present"
+        :selector "div.loading")
+
+  (step :wait "Wait for results"
+        :ms 2000)
+
+  ;; A function can also be a test step. It must return boolean (success value)
+  ;; or a new context map.
+  ^{:drtest.step/label "Check results in app state"}
+  (fn [{app :app}]
+    (= 2 (count (:results @app))))
+
+  (step :expect-count "Check results are rendered"
+        :selector "li.result" :count 2))
+```
+
+## Pics
 
 ![drtest in action](/drtest.png?raw=true)
 
-# Steps
+## Steps
 
 Steps are user defined functions or defined as maps containing `:drtest.step/type` (required), `drtest.step/label` (optional)
 and type specific keys.
