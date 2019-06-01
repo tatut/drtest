@@ -1,5 +1,7 @@
 # drtest
 
+[![Clojars Project](https://img.shields.io/clojars/v/webjure/drtest.svg)](https://clojars.org/webjure/drtest)
+
 Declarative Reagent testing library.
 
 The test runner can take screenshots after each action when combined with `clj-chrome-devtools` test
