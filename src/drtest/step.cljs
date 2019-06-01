@@ -227,3 +227,16 @@
     (if-not (number? ms)
       (fail "Wait time must be specified as a number in :ms" {:ms ms})
       (.setTimeout js/window #(ok ctx) ms))))
+
+(defmethod execute :wait-promise [step-descriptor ctx ok fail]
+  (let [{:keys [promise as]} (resolve-ctx step-descriptor ctx)]
+    (if-not (instance? promise js/Promise)
+      (fail "Expected a Promise instance" {:promise promise})
+      (-> promise
+          (.then (fn [val]
+                   (ok (if as
+                         (assoc ctx as val)
+                         ctx))))
+          (.catch (fn [reason]
+                    (fail "Promise was rejected" {:promise promise
+                                                  :reason reason})))))))
