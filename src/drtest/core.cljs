@@ -77,14 +77,24 @@
       (throw (ex-info (str "Found " (count invalid-steps) " invalid steps, check step descriptors.")
                       {:invalid-steps (vec invalid-steps)})))))
 
+(defn- expand-steps [steps]
+  (into []
+        (mapcat (fn [step]
+                  (if (or (seq? step)
+                          (vector? step))
+                    step
+                    [step])))
+        steps))
+
 (defn run-steps [{:keys [screenshots? initial-context done] :as opts} & steps]
-  (try
-    (check-options opts)
-    (check-steps steps)
-    (catch js/Object e
-      (is false (str (ex-message e) ", info:\n" (pr-str (ex-data e))))
-      (if done
-        (done)
-        (throw e))))
-  (let [step-count (count steps)]
-    (run-step* opts 1 step-count initial-context steps)))
+  (let [steps (expand-steps steps)]
+    (try
+      (check-options opts)
+      (check-steps steps)
+      (catch js/Object e
+        (is false (str (ex-message e) ", info:\n" (pr-str (ex-data e))))
+        (if done
+          (done)
+          (throw e))))
+    (let [step-count (count steps)]
+      (run-step* opts 1 step-count initial-context steps))))
