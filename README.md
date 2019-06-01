@@ -43,3 +43,8 @@ describing success or failure.
 Returning false from a function will fail the test and consequent steps will not run.
 
 To provide a label for a function step, use a metadata map with `:drtest.step/label` key.
+
+## Changes
+
+### 20190601
+* Initial version
