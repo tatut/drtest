@@ -171,19 +171,22 @@
       (ok ctx))))
 
 (defmethod execute :expect-count [step-descriptor ctx ok fail]
-  (let [{:keys [selector count]} (resolve-ctx step-descriptor ctx)]
+  (let [{:keys [selector count as]} (resolve-ctx step-descriptor ctx #(not= % :as))]
     (if-not (number? count)
       (fail "Expected element count must be specified as :count key." {:count count})
       (if-not (string? selector)
         (fail "Expected string :selector" {:selector selector})
-        (let [actual-count (-> ctx ::container
-                               (.querySelectorAll selector)
-                               .-length)]
+        (let [qs (-> ctx ::container (.querySelectorAll selector))
+              actual-count (.-length qs)]
           (if (not= actual-count count)
             (fail "Unexpected number of elements" {:expected-count count
                                                    :actual-count actual-count
                                                    :selector selector})
-            (ok ctx)))))))
+            (ok (if as
+                  (assoc ctx as
+                         (vec (for [i (range (.-length qs))]
+                                (.item qs i))))
+                  ctx))))))))
 
 (defn with-element [step-descriptor ctx fail func]
   (let [{:keys [selector element]} (resolve-ctx step-descriptor ctx)]

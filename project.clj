@@ -1,4 +1,4 @@
-(defproject webjure/drtest "20190601"
+(defproject webjure/drtest "20190603-SNAPSHOT"
   :description "Declarative Reagent UI testing library"
   :url "https://github.com/tatut/drtest"
   :dependencies [[org.clojure/clojure "1.10.0"]
