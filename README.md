@@ -69,7 +69,7 @@ and type specific keys.
 | `:render` | Render the reagent `:component` to new container. |
 | `:expect` | Check element with `:selector` exists. Can also check that is has `:text`, `:value` and `:attributes` present. |
 | `:expect-no` | Check that no element with `:selector` exists. |
-| `:expect-count` | Check that `:count` amount of elements are found with `:selector`. |
+| `:expect-count` | Check that `:count` amount of elements are found with `:selector`. Adds element vector to context if `:as` is specified. |
 | `:click` | Simulate click event on `:element` or `:selector`. |
 | `:type` | Simulate typing `:text` event on `:element` or `:selector`. If `:overwrite?` is true replaces text, otherwise appends. |
 | `:wait` | Wait for `:ms` milliseconds before continuing. |
