@@ -88,5 +88,13 @@ To provide a label for a function step, use a metadata map with `:drtest.step/la
 
 ## Changes
 
+### 20190605
+* Fix bug in `:wait-promise`
+* Add `:timeout` (default 2000ms) to `:expect`
+* Add `:drtest.step/wait-render?` meta to function steps
+
+### 20190603
+* Support `:as` in `:expect-count`
+
 ### 20190601
 * Initial version
