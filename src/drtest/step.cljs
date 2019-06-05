@@ -67,7 +67,13 @@
 
 (defmethod execute ::fn [step-fn ctx ok fail]
   (try
-    (let [result (step-fn ctx)]
+    (let [{::keys [wait-render?]} (meta step-fn)
+          ok (if wait-render?
+               (fn [result]
+                 (r/force-update-all)
+                 (r/after-render #(ok result)))
+               ok)
+          result (step-fn ctx)]
       (cond
         (false? result)
         (fail "Step function returned false" {})
@@ -135,14 +141,27 @@
                           {:expected-text expected-text}))))
 
 
+(defn- with-selector [selector c timeout ok fail]
+  (if-not (string? selector)
+    (fail "Selector must be a string" {:selector selector})
+    (let [start (.getTime (js/Date.))
+          timeout (or timeout 2000)]
+      ((fn find [] (if-let [element (.querySelector c selector)]
+                      (ok element)
+                      (let [now (.getTime (js/Date.))]
+                        (if (>= (- now start) timeout)
+                          (fail "Expected element was not found within timeout limit."
+                                {:selector selector
+                                 :timeout timeout})
+                          (.setTimeout js/window find 50)))))))))
+
 ;; Expect an element with selector to be present
 (defmethod execute :expect [step-descriptor ctx ok fail]
-  (let [{:keys [selector attributes text value as]} (resolve-ctx step-descriptor ctx)
+  (let [{:keys [selector attributes text value as timeout]} (resolve-ctx step-descriptor ctx)
         c (::container ctx)]
-    (if-not (string? selector)
-      (fail "Selector must be a string" {:selector selector})
-      (try
-        (let [element (.querySelector c selector)]
+    (try
+      (with-selector selector c timeout
+        (fn [element]
           (if-not element
             (fail "Expected element was not found" {:selector selector})
             (let [wrong-attributes (and attributes (check-attributes attributes element))]
@@ -161,8 +180,9 @@
                     (ok (if as
                           (assoc ctx as element)
                           ctx))))))))
-        (catch js/Error e
-          (fail "Error in :expect step." {:step-descriptor step-descriptor}))))))
+        fail)
+      (catch js/Error e
+        (fail "Error in :expect step." {:step-descriptor step-descriptor})))))
 
 (defmethod execute :expect-no [step-descriptor ctx ok fail]
   (let [{:keys [selector]} (resolve-ctx step-descriptor ctx)]
@@ -233,7 +253,7 @@
 
 (defmethod execute :wait-promise [step-descriptor ctx ok fail]
   (let [{:keys [promise as]} (resolve-ctx step-descriptor ctx)]
-    (if-not (instance? promise js/Promise)
+    (if-not (instance? js/Promise promise)
       (fail "Expected a Promise instance" {:promise promise})
       (-> promise
           (.then (fn [val]
