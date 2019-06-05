@@ -58,22 +58,27 @@
       (and (map? step-descriptor)
            (contains? step-descriptor ::type))))
 
+(defn- descriptor-dispatch [step-descriptor]
+  (cond
+    (fn? step-descriptor) ::fn
+    :else (::type step-descriptor)))
+
 (defmulti execute
   "Execute a single test step. "
   (fn [step-descriptor ctx ok fail]
-    (cond
-      (fn? step-descriptor) ::fn
-      :else (::type step-descriptor))))
+    (descriptor-dispatch step-descriptor)))
+
+(defmulti step-defaults
+  "Per step defaults"
+  (fn [step-descriptor]
+    (descriptor-dispatch step-descriptor)))
+
+(defmethod step-defaults :default [_]
+  nil)
 
 (defmethod execute ::fn [step-fn ctx ok fail]
   (try
-    (let [{::keys [wait-render?]} (meta step-fn)
-          ok (if wait-render?
-               (fn [result]
-                 (r/force-update-all)
-                 (r/after-render #(ok result)))
-               ok)
-          result (step-fn ctx)]
+    (let [result (step-fn ctx)]
       (cond
         (false? result)
         (fail "Step function returned false" {})
@@ -230,6 +235,9 @@
           (r/force-update-all)
           (r/after-render #(ok ctx)))))))
 
+(defmethod step-defaults :click [_]
+  {::wait-render? true})
+
 ;; Type text into an element
 (defmethod execute :type [step-descriptor ctx ok fail]
   (with-element step-descriptor ctx fail
@@ -244,6 +252,9 @@
           (r/after-render #(ok ctx))
           (catch js/Error e
             (fail (str "Exception in :type step: " (.-message e)) {:error e})))))))
+
+(defmethod step-defaults :type [_]
+  {::wait-render? true})
 
 (defmethod execute :wait [step-descriptor ctx ok fail]
   (let [{:keys [ms]} (resolve-ctx step-descriptor ctx)]

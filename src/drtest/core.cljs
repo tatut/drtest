@@ -4,16 +4,18 @@
             [cljs.test :refer [is] :include-macros true]))
 
 (defn- step-info [step]
-  (cond
-    (map? step)
-    step
+  (merge
+   (ds/step-defaults step)
+   (cond
+     (map? step)
+     step
 
-    (fn? step)
-    (merge {::ds/type ::ds/fn}
-           (meta step))
+     (fn? step)
+     (merge {::ds/type ::ds/fn}
+            (meta step))
 
-    :else
-    (throw (ex-info "Unrecognized step type" {:step step}))))
+     :else
+     (throw (ex-info "Unrecognized step type" {:step step})))))
 
 (defn- take-screenshot [step step-num step-count failed? then-fn]
   (let [{::ds/keys [label type]} (step-info step)
@@ -49,16 +51,28 @@
               (then-fn)))))
 
 (defn- run-step* [{:keys [screenshots? done] :as opts} step-num step-count ctx [step & steps]]
-  (let [{::ds/keys [label type]} (step-info step)]
+  (let [{::ds/keys [label type screenshot? wait-render?]} (step-info step)
+        take-screenshot? (if (some? screenshot?)
+                           ;; If defined per step, use that
+                           screenshot?
+
+                           ;; Otherwise use common option
+                           screenshots?)]
     (println "Running step: " (or label "<no label>") " (" type ")")
     (ds/execute step ctx
                 ;; Ok callback => run next step
                 (fn [ctx]
                   (is true (str "[OK] Step " (or label type)))
-                  (let [cont #(if (seq steps)
-                                (run-step* opts (inc step-num) step-count ctx steps)
-                                (done))]
-                    (if screenshots?
+                  (let [cont (fn []
+                               (if (seq steps)
+                                 (let [next-step #(run-step* opts (inc step-num) step-count ctx steps)]
+                                   (if wait-render?
+                                     (do
+                                       (r/force-update-all)
+                                       (r/after-render next-step))
+                                     (next-step)))
+                                 (done)))]
+                    (if take-screenshot?
                       (take-screenshot step step-num step-count false cont)
                       (cont))))
 
