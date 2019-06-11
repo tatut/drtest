@@ -1,7 +1,8 @@
 (ns drtest.core
   "Declarative Reagent test runner."
   (:require [drtest.step :as ds]
-            [cljs.test :refer [is] :include-macros true]))
+            [cljs.test :refer [is] :include-macros true]
+            [reagent.core :as r]))
 
 (defn- step-info [step]
   (merge
