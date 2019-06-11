@@ -88,6 +88,10 @@ To provide a label for a function step, use a metadata map with `:drtest.step/la
 
 ## Changes
 
+### 20190611
+* Bug fix (missing reagent require)
+* Always add `:drtest.step/cleanup` as the last step
+
 ### 20190605
 * Fix bug in `:wait-promise`
 * Add `:timeout` (default 2000ms) to `:expect`
