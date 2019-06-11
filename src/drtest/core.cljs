@@ -117,4 +117,5 @@
           (done)
           (throw e))))
     (let [step-count (count steps)]
-      (run-step* opts 1 step-count initial-context steps))))
+      (run-step* opts 1 step-count initial-context
+                 (concat steps [{::ds/type ::ds/cleanup ::ds/label "Post test cleanup"}])))))
