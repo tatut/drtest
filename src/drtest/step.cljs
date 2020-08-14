@@ -238,6 +238,8 @@
 (defmethod step-defaults :click [_]
   {::wait-render? true})
 
+(def simulate-change (aget test-utils "Simulate" "change"))
+
 ;; Type text into an element
 (defmethod execute :type [step-descriptor ctx ok fail]
   (with-element step-descriptor ctx fail
@@ -247,7 +249,7 @@
           (set! (.-value elt) (if overwrite?
                                 text
                                 (str (.-value elt) text)))
-          (js/ReactTestUtils.Simulate.change elt)
+          (simulate-change elt)
           (r/force-update-all)
           (r/after-render #(ok ctx))
           (catch js/Error e
