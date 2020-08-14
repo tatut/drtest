@@ -2,7 +2,8 @@
   "Declarative Reagent test runner."
   (:require [drtest.step :as ds]
             [cljs.test :refer [is] :include-macros true]
-            [reagent.core :as r]))
+            [reagent.core :as r]
+            [reagent.dom :as rdom]))
 
 (defn- step-info [step]
   (merge
@@ -69,7 +70,7 @@
                                  (let [next-step #(run-step* opts (inc step-num) step-count ctx steps)]
                                    (if wait-render?
                                      (do
-                                       (r/force-update-all)
+                                       (rdom/force-update-all)
                                        (r/after-render next-step))
                                      (next-step)))
                                  (done)))]
