@@ -15,6 +15,7 @@
   error data map."
 
   (:require [reagent.core :as r]
+            [reagent.dom :as rdom]
             ["react-dom/test-utils" :as test-utils]
             [clojure.string :as str]))
 
@@ -109,7 +110,7 @@
                   (.appendChild js/document.body
                                 (.createElement js/document "div")))]
         (try
-          (r/render component c)
+          (rdom/render component c)
           (ok (merge ctx {::container c
                           ::container-created? (nil? container)}))
           (catch js/Error e
@@ -232,7 +233,7 @@
         (fail "Can't click, element is disabled." {:element elt})
         (do
           (.click elt)
-          (r/force-update-all)
+          (rdom/force-update-all)
           (r/after-render #(ok ctx)))))))
 
 (defmethod step-defaults :click [_]
@@ -250,7 +251,7 @@
                                 text
                                 (str (.-value elt) text)))
           (simulate-change elt)
-          (r/force-update-all)
+          (rdom/force-update-all)
           (r/after-render #(ok ctx))
           (catch js/Error e
             (fail (str "Exception in :type step: " (.-message e)) {:error e})))))))
