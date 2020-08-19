@@ -233,7 +233,6 @@
         (fail "Can't click, element is disabled." {:element elt})
         (do
           (.click elt)
-          (rdom/force-update-all)
           (r/after-render #(ok ctx)))))))
 
 (defmethod step-defaults :click [_]
@@ -251,7 +250,6 @@
                                 text
                                 (str (.-value elt) text)))
           (simulate-change elt)
-          (rdom/force-update-all)
           (r/after-render #(ok ctx))
           (catch js/Error e
             (fail (str "Exception in :type step: " (.-message e)) {:error e})))))))
