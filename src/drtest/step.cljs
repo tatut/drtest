@@ -110,9 +110,9 @@
                   (.appendChild js/document.body
                                 (.createElement js/document "div")))]
         (try
-          (rdom/render component c)
-          (ok (merge ctx {::container c
-                          ::container-created? (nil? container)}))
+          (rdom/render component c
+                       #(ok (merge ctx {::container c
+                                        ::container-created? (nil? container)})))
           (catch js/Error e
             (fail (str "Render failed: " (.-message e))
                   {:error e})))))))
