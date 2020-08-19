@@ -215,13 +215,13 @@
                   ctx))))))))
 
 (defn with-element [step-descriptor ctx fail func]
-  (let [{:keys [selector element]} (resolve-ctx step-descriptor ctx)]
+  (let [{:keys [selector element in]} (resolve-ctx step-descriptor ctx)]
     (if (and (nil? element)
              (not (string? selector)))
       (fail "No element or string selector specified" {:selector selector
                                                        :element element})
       (if-let [elt (or element
-                       (.querySelector (::container ctx) selector))]
+                       (.querySelector (or in (::container ctx)) selector))]
         (func elt)
         (fail "Can't find element." {:selector selector})))))
 
